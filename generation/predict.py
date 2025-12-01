@@ -1,24 +1,32 @@
 import torch
 
-def predict_next_word(model, input_sequence, word_to_index, index_to_word, device="cpu"):
+def predict_next_subword(model, tokenizer, input_ids, device="cpu"):
     """
-    Predict the next word for a given input sequence using the trained model.
-    
+    Predict the next subword token using a trained model and a subword tokenizer.
+
     Args:
-        model: trained PyTorch model
-        input_sequence: list of word indices (a sequence)
-        word_to_index: dict mapping words → indices
-        index_to_word: dict mapping indices → words
-        device: "cpu" or "cuda"
+        model: Trained PyTorch model for next-token prediction.
+        tokenizer: SubwordTokenizer instance (SentencePiece).
+        input_ids (list[int]): List of already encoded subword token IDs.
+        device (str): "cpu" or "cuda".
 
     Returns:
-        str: predicted next word
+        tuple: (predicted_id, predicted_piece, predicted_text)
+            predicted_id (int): Subword token ID
+            predicted_piece (str): The raw SentencePiece token (e.g., "▁play")
+            predicted_text (str): Decoded text for that single token
     """
-    model.eval()
-    input_tensor = torch.tensor([input_sequence], dtype=torch.long).to(device)
     
+    model.eval()
+    input_tensor = torch.tensor([input_ids], dtype=torch.long).to(device)
+
     with torch.no_grad():
         logits = model(input_tensor)
-        predicted_index = torch.argmax(logits, dim=1).item()
-    
-    return index_to_word.get(predicted_index, "<UNK>")
+        # logits shape: (1, seq_len, vocab_size)
+        predicted_id = torch.argmax(logits[0, -1]).item()
+
+    # Convert predicted ID → subword token
+    predicted_piece = tokenizer.sp.IdToPiece(predicted_id)
+    predicted_text = tokenizer.decode([predicted_id])
+
+    return predicted_id, predicted_piece, predicted_text

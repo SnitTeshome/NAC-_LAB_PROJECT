@@ -3,6 +3,9 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
 def test_model(model, test_inputs, test_outputs, batch_size=64, device="cpu"):
+    """
+    Evaluate the model on the test set and return average loss.
+    """
     model.eval()
     criterion = nn.CrossEntropyLoss()
     
@@ -11,14 +14,18 @@ def test_model(model, test_inputs, test_outputs, batch_size=64, device="cpu"):
     test_ds = TensorDataset(X_test, Y_test)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
     
-    test_loss = 0.0
+    total_loss = 0.0
+    total_samples = 0
+
     with torch.no_grad():
         for xb, yb in test_loader:
             xb, yb = xb.to(device), yb.to(device)
-            y_target = yb[:, 0].long()  # predict the first next word
+            y_target = yb[:, 0].long()  # predict the first next token
             logits = model(xb)
             loss = criterion(logits, y_target)
-            test_loss += loss.item() * xb.size(0)
+
+            total_loss += loss.item() * xb.size(0)
+            total_samples += xb.size(0)
     
-    avg_loss = test_loss / len(test_loader.dataset)
-    print(f"Test Loss: {avg_loss:.4f}")
+    avg_loss = total_loss / total_samples
+    return avg_loss

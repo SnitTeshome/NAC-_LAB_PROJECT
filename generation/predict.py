@@ -16,7 +16,6 @@ def predict_next_subword(model, tokenizer, input_ids, device="cpu"):
             predicted_piece (str): The raw SentencePiece token (e.g., "▁play")
             predicted_text (str): Decoded text for that single token
     """
-    
     model.eval()
     input_tensor = torch.tensor([input_ids], dtype=torch.long).to(device)
 
@@ -30,3 +29,46 @@ def predict_next_subword(model, tokenizer, input_ids, device="cpu"):
     predicted_text = tokenizer.decode([predicted_id])
 
     return predicted_id, predicted_piece, predicted_text
+
+
+# -------------------------------------------
+# Subword-level sentence generation function
+# -------------------------------------------
+def generate_sentence_subword(
+    model,
+    tokenizer,
+    seed_text,
+    max_gen_len=20,
+    device="cpu"
+):
+    """
+    Generate a sentence using subword prediction iteratively.
+
+    Args:
+        model: Trained PyTorch model
+        tokenizer: Subword tokenizer (SentencePiece)
+        seed_text: String of initial text
+        max_gen_len: Maximum number of subwords to generate
+        device: "cpu" or "cuda"
+
+    Returns:
+        str: Generated sentence
+    """
+    # Encode seed text into subword IDs
+    input_ids = tokenizer.encode(seed_text)
+    generated_ids = input_ids.copy()
+
+    for _ in range(max_gen_len):
+        pred_id, pred_piece, pred_text = predict_next_subword(
+            model, tokenizer, generated_ids, device=device
+        )
+
+        # Stop if end-of-sentence token appears
+        if pred_text == "<EOS>":
+            break
+
+        generated_ids.append(pred_id)
+
+    # Decode all generated IDs into text
+    generated_sentence = tokenizer.decode(generated_ids)
+    return generated_sentence
